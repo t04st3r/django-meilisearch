@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+Django = "==4.2"
+psycopg = "3.1.9"
+django-countries = "7.5.1"
+requests = "2.31.0"
+djangorestframework = "==3.14.0"
+drf-spectacular = "*"
+
+[dev-packages]
+pytest-django = "4.5.2"
+factory-boy = "==3.2.1"
+pytest-cov = "==4.1.0"
+ruff = "==0.0.272"
+pre-commit = "==3.3.2"
