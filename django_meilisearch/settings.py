@@ -73,6 +73,10 @@ TEMPLATES = [
     },
 ]
 
+MEILISEARCH_URL = environ.get("MEILI_URL", "http://localhost:7700")
+MEILISEARCH_API_KEY = environ.get("MEILI_MASTER_KEY", "supersecretlongkey")
+
+
 WSGI_APPLICATION = "django_meilisearch.wsgi.application"
 
 REST_FRAMEWORK = {
