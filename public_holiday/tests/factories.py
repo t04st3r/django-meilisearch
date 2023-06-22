@@ -22,6 +22,7 @@ class MockResponse:
 
     def __init__(self, data, status_code, url=None, error="MockResponseError"):
         self.status_code = status_code
+        self.text = data
         self.data = data
         self.content = data.encode()
         self.url = url

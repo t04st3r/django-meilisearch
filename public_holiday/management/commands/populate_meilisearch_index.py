@@ -1,5 +1,3 @@
-# myapp/management/commands/populate_public_holiday_index.py
-
 import meilisearch
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -16,7 +14,6 @@ class Command(BaseCommand):
             client = meilisearch.Client(
                 settings.MEILISEARCH_URL, settings.MEILISEARCH_API_KEY
             )
-
             # Create or get the "public_holiday" index
             index_name = "public_holiday"
             index = client.index(index_name)
@@ -24,19 +21,22 @@ class Command(BaseCommand):
             public_holidays = PublicHoliday.objects.all()
 
             if len(public_holidays) > 0:
+                documents = []
                 # Populate the index with PublicHoliday models
                 for public_holiday in public_holidays:
                     # Convert PublicHoliday model to MeiliSearch document format
-                    document = {
-                        "id": str(public_holiday.id),
-                        "country": str(public_holiday.country),
-                        "name": public_holiday.name,
-                        "local_name": public_holiday.local_name,
-                        "date": public_holiday.date.isoformat(),
-                    }
+                    documents.append(
+                        {
+                            "id": str(public_holiday.id),
+                            "country": str(public_holiday.country),
+                            "name": public_holiday.name,
+                            "local_name": public_holiday.local_name,
+                            "date": public_holiday.date.isoformat(),
+                        }
+                    )
 
-                    # Add the document to the index
-                    index.add_documents([document])
+                # Add the documents to the index
+                index.add_documents(documents)
                 self.stdout.write(
                     self.style.SUCCESS(
                         f'Successfully populated "{index_name}" index'
