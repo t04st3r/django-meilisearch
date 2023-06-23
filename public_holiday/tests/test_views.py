@@ -1,13 +1,34 @@
-import pytest
+from unittest.mock import MagicMock, patch
 
+from meilisearch.errors import MeilisearchApiError
+import pytest
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
-from .factories import PublicHolidayFactory
+
+from .factories import PublicHolidayFactory, MockResponse
+from public_holiday.serializers import PublicholidaySerializer
 
 
 @pytest.mark.django_db
 class TestPublicHolidayAPI:
+    meilisearch_response = [
+        {
+            "date": "2023-02-20",
+            "local_name": "Carnevale",
+            "name": "Carnival",
+            "country": "IT",
+            "id": "2",
+        },
+        {
+            "date": "2023-12-25",
+            "local_name": "Natale",
+            "name": "Christmas",
+            "country": "IT",
+            "id": "1",
+        },
+    ]
+
     def test_public_holiday_list_success(self):
         batch = PublicHolidayFactory.create_batch(10)
         client = APIClient()
@@ -33,3 +54,118 @@ class TestPublicHolidayAPI:
         assert response_dict["name"] == model.name
         assert response_dict["local_name"] == model.local_name
         assert response_dict["country"] == str(model.country)
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action(self, MockMeiliSearchClient):
+        # Mock the MeiliSearch client
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        client_instance.search.return_value = {"hits": self.meilisearch_response}
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint
+        response = api_client.get(
+            "/public_holiday/search/",
+            {"q": "query", "sort": "country", "fields": ["country", "name"]},
+        )
+
+        # Assert the response status code
+        assert response.status_code == 200
+
+        # Assert the response data
+        expected_data = self.meilisearch_response
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        client_instance.search.assert_called_with(
+            "query",
+            {
+                "sort": ["country:asc"],
+                "attributesToRetrieve": ["name", "country"],
+            },
+        )
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action_with_invalid_fields(self, MockMeiliSearchClient):
+        # Mock the MeiliSearch client
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        client_instance.search.return_value = {"hits": self.meilisearch_response}
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint with invalid fields
+        response = api_client.get(
+            "/public_holiday/search/", {"fields": "invalid_field"}
+        )
+
+        # Assert the response status code
+        assert response.status_code == 200
+
+        # Assert that all fields are included in the response data
+        expected_data = self.meilisearch_response
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        client_instance.search.assert_called_with(
+            "",
+            {
+                "sort": ["id:asc"],
+                "attributesToRetrieve": ["*"],
+            },
+        )
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action_with_error(self, MockMeiliSearchClient):
+        # Mock the MeiliSearch client to raise an error
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        mock_response = MockResponse("", 500, error="Server Error")
+        client_instance.search.side_effect = MeilisearchApiError(
+            "An error occurred.", mock_response
+        )
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint
+        response = api_client.get(
+            "/public_holiday/search/", {"q": "query", "sort": "id"}
+        )
+
+        # Assert the response status code
+        assert response.status_code == 500
+
+        # Assert the response data
+        expected_data = {"detail": "Error while fetching data from meilisarch"}
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        client_instance.search.assert_called_with(
+            "query",
+            {
+                "sort": ["id:asc"],
+                "attributesToRetrieve": ["*"],
+            },
+        )

@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.conf import settings
 from public_holiday.tests.factories import MockResponse
 from public_holiday.models import PublicHoliday
+from public_holiday.serializers import PublicholidaySerializer
 from public_holiday.tests.factories import PublicHolidayFactory
 from meilisearch.errors import MeilisearchApiError, MeilisearchCommunicationError
 from unittest import mock
@@ -88,14 +89,14 @@ class TestPopulateMeilisearchIndexCommand:
     @mock.patch(
         "public_holiday.management.commands.populate_meilisearch_index.meilisearch.Client"
     )
-    def test_handle_with_public_holidays(self, mock_client):
+    def test_command_with_public_holidays(self, mock_client):
         # Mock the MeiliSearch client and index
         mock_index = mock_client.return_value.index.return_value
         mock_index_name = "public_holiday"
 
         # Create test data using factory
         public_holidays = PublicHolidayFactory.create_batch(2)
-
+        documents = PublicholidaySerializer(public_holidays, many=True)
         # Call the command to get the output
         result = _call_command("populate_meilisearch_index")
 
@@ -104,24 +105,7 @@ class TestPopulateMeilisearchIndexCommand:
             settings.MEILISEARCH_URL, settings.MEILISEARCH_API_KEY
         )
         mock_client.return_value.index.assert_called_once_with(mock_index_name)
-        mock_index.add_documents.assert_called_once_with(
-            [
-                {
-                    "id": str(public_holidays[0].id),
-                    "country": str(public_holidays[0].country),
-                    "name": public_holidays[0].name,
-                    "local_name": public_holidays[0].local_name,
-                    "date": public_holidays[0].date.isoformat(),
-                },
-                {
-                    "id": str(public_holidays[1].id),
-                    "country": str(public_holidays[1].country),
-                    "name": public_holidays[1].name,
-                    "local_name": public_holidays[1].local_name,
-                    "date": public_holidays[1].date.isoformat(),
-                },
-            ]
-        )
+        mock_index.add_documents.assert_called_once_with(documents.data)
         assert (
             'Successfully populated "public_holiday" index with 2 documents.\n'
             == result
@@ -130,7 +114,7 @@ class TestPopulateMeilisearchIndexCommand:
     @mock.patch(
         "public_holiday.management.commands.populate_meilisearch_index.meilisearch.Client"
     )
-    def test_handle_without_public_holidays(self, mock_client):
+    def test_command_without_public_holidays(self, mock_client):
         # Mock the MeiliSearch client and index
         mock_index = mock_client.return_value.index.return_value
         mock_index_name = "public_holiday"
@@ -149,7 +133,7 @@ class TestPopulateMeilisearchIndexCommand:
     @mock.patch(
         "public_holiday.management.commands.populate_meilisearch_index.meilisearch.Client"
     )
-    def test_handle_meilisearch_api_error(self, mock_client):
+    def test_command_meilisearch_api_error(self, mock_client):
         # Mock the MeiliSearch client and index to raise MeilisearchApiError
         mock_index = mock_client.return_value.index.return_value
         mock_response = MockResponse("", 500, error="Server Error")
@@ -177,7 +161,7 @@ class TestPopulateMeilisearchIndexCommand:
     @mock.patch(
         "public_holiday.management.commands.populate_meilisearch_index.meilisearch.Client"
     )
-    def test_handle_meilisearch_communication_error(self, mock_client):
+    def test_command_meilisearch_communication_error(self, mock_client):
         # Mock the MeiliSearch client to raise MeilisearchCommunicationError
         mock_client.side_effect = MeilisearchCommunicationError("Communication error")
 

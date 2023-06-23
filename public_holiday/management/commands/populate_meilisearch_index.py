@@ -3,6 +3,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from meilisearch.errors import MeilisearchApiError, MeilisearchCommunicationError
 from public_holiday.models import PublicHoliday
+from public_holiday.serializers import PublicholidaySerializer
 
 
 class Command(BaseCommand):
@@ -21,22 +22,9 @@ class Command(BaseCommand):
             public_holidays = PublicHoliday.objects.all()
 
             if len(public_holidays) > 0:
-                documents = []
-                # Populate the index with PublicHoliday models
-                for public_holiday in public_holidays:
-                    # Convert PublicHoliday model to MeiliSearch document format
-                    documents.append(
-                        {
-                            "id": str(public_holiday.id),
-                            "country": str(public_holiday.country),
-                            "name": public_holiday.name,
-                            "local_name": public_holiday.local_name,
-                            "date": public_holiday.date.isoformat(),
-                        }
-                    )
-
+                documents = PublicholidaySerializer(public_holidays, many=True)
                 # Add the documents to the index
-                index.add_documents(documents)
+                index.add_documents(documents.data)
                 self.stdout.write(
                     self.style.SUCCESS(
                         f'Successfully populated "{index_name}" index'
