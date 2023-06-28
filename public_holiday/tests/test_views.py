@@ -85,13 +85,143 @@ class TestPublicHolidayAPI:
         client_instance.update_sortable_attributes.assert_called_with(
             list(PublicholidaySerializer().fields)
         )
-        client_instance.search.assert_called_with(
-            "query",
+        # Assert proper args are passed to the search method
+        args, _ = client_instance.search.call_args
+        assert args[0] == "query"
+        assert type(args[1]) == dict
+        assert args[1]["sort"] == ["country:asc"]
+
+        # Under the hood a set is used to check duplicates
+        # hence the elements order is not preserved anymore
+        # however we will assert that correct attributes are passed along
+        attributes_to_retrieve = args[1]["attributesToRetrieve"]
+        assert len(attributes_to_retrieve) == 2
+        assert "country" in attributes_to_retrieve
+        assert "name" in attributes_to_retrieve
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action_duplicate_fields(self, MockMeiliSearchClient):
+        # Mock the MeiliSearch client
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        client_instance.search.return_value = {"hits": self.meilisearch_response}
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint
+        response = api_client.get(
+            "/public_holiday/search/",
             {
-                "sort": ["country:asc"],
-                "attributesToRetrieve": ["name", "country"],
+                "q": "query",
+                "sort": "country",
+                "fields": ["country", "name", "country", "name"],
             },
         )
+
+        # Assert the response status code
+        assert response.status_code == 200
+
+        # Assert the response data
+        expected_data = self.meilisearch_response
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        # Assert proper args are passed to the search method
+        args, _ = client_instance.search.call_args
+        assert args[0] == "query"
+        assert type(args[1]) == dict
+        assert args[1]["sort"] == ["country:asc"]
+
+        # Under the hood a set is used to check duplicates
+        # hence the elements order is not preserved anymore
+        # however we will assert that duplicate fields are removed
+        attributes_to_retrieve = args[1]["attributesToRetrieve"]
+        assert len(attributes_to_retrieve) == 2
+        assert "country" in attributes_to_retrieve
+        assert "name" in attributes_to_retrieve
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action_sort_desc(self, MockMeiliSearchClient):
+        # Mock the MeiliSearch client
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        client_instance.search.return_value = {"hits": self.meilisearch_response}
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint note the dash
+        # in the sort param value
+        response = api_client.get(
+            "/public_holiday/search/",
+            {"q": "query", "sort": "-country"},
+        )
+
+        # Assert the response status code
+        assert response.status_code == 200
+
+        # Assert the response data
+        expected_data = self.meilisearch_response
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        # Assert proper args are passed to the search method
+        args, _ = client_instance.search.call_args
+        assert args[0] == "query"
+        assert type(args[1]) == dict
+        assert args[1]["sort"] == ["country:desc"]
+
+    @patch("public_holiday.views.meilisearch.Client")
+    def test_search_action_default_sort_with_invalid_sort_param(
+        self, MockMeiliSearchClient
+    ):
+        # Mock the MeiliSearch client
+        client_instance = MagicMock()
+        client_instance.index.return_value = client_instance
+        client_instance.update_sortable_attributes.return_value = client_instance
+        client_instance.search.return_value = {"hits": self.meilisearch_response}
+        MockMeiliSearchClient.return_value = client_instance
+
+        # Create an instance of the API client
+        api_client = APIClient()
+
+        # Make a GET request to the search endpoint note the dash
+        # in the sort param value
+        response = api_client.get(
+            "/public_holiday/search/",
+            {"q": "query", "sort": "-pizza"},
+        )
+
+        # Assert the response status code
+        assert response.status_code == 200
+
+        # Assert the response data
+        expected_data = self.meilisearch_response
+        assert response.data == expected_data
+
+        # Assert the MeiliSearch client calls
+        client_instance.index.assert_called_with("public_holiday")
+        client_instance.update_sortable_attributes.assert_called_with(
+            list(PublicholidaySerializer().fields)
+        )
+        # Assert proper args are passed to the search method
+        args, _ = client_instance.search.call_args
+        assert args[0] == "query"
+        assert type(args[1]) == dict
+        assert args[1]["sort"] == ["id:asc"]
 
     @patch("public_holiday.views.meilisearch.Client")
     def test_search_action_with_invalid_fields(self, MockMeiliSearchClient):

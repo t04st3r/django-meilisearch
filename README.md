@@ -84,7 +84,21 @@ Or
 ```bash
 make populate-models
 ```
-For each command run a random country is selected and all the public holidays for that country would be fetched and stored in the db
+For each command run a random country is selected and all the public holidays for that country would be fetched and stored in the db.
+
+Once fetched some public holidays you can create/update your index on meilisearch by running the following command
+```bash
+make populate-meilisearch-index
+```
+The `public_holiday` view will expose a `search` endpoint that is testable
+by running the server and connect to `public_holiday/search/` path or via
+the swagger UI (`/api/schema/swagger-ui/`).
+
+The endpoint will accept the following query parameters:
+- `q` will perform full text search among all the document fields 
+- `fields` is a list param that will select which fields to include
+in the document search response (something like `graphQL` feature)
+- `sort` will sort results by the field specified in this param (prefixing the param value with a dash will sort results in descending order)
 
 ## Testing
 Testing requirements can be installed by

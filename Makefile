@@ -27,5 +27,8 @@ collectstatic:
 populate-models:
 	python manage.py populate_models
 
+populate-meilisearch-index:
+	python manage.py populate_meilisearch_index
+
 run-dev:
 	python manage.py runserver	

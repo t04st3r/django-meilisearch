@@ -48,7 +48,7 @@ class PublicHolidayList(viewsets.ReadOnlyModelViewSet):
             fields = set(request.query_params.getlist("fields", []))
 
             # Validate fields parameter, if not valid all the fields would be included
-            attribute_to_restrieve = (
+            attributes_to_retrieve = (
                 list(fields)
                 if fields.issubset(set(model_fields)) and len(fields) > 0
                 else ["*"]
@@ -76,7 +76,7 @@ class PublicHolidayList(viewsets.ReadOnlyModelViewSet):
                 query,
                 {
                     "sort": [f"{sort_field}:{sort_order}"],
-                    "attributesToRetrieve": attribute_to_restrieve,
+                    "attributesToRetrieve": attributes_to_retrieve,
                 },
             )
             documents = response["hits"]
